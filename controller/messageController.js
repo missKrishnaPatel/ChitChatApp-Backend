@@ -69,3 +69,78 @@ export const getAllMessages = async(req,res)=>{
             return errorResponse(res,500,"Server error")
     }
 };
+
+
+
+
+export const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user.userId;
+
+    const message = await Message.findById(messageId);
+
+    if (!message) {
+      return errorResponse(res, 404, "Message not found");
+    }
+
+    if (message.senderId.toString() !== userId) {
+      return errorResponse(
+        res,
+        403,
+        "You are not the owner of this message"
+      );
+    }
+
+    message.message = "This message was deleted";
+    message.isDeleted = true;
+
+    await message.save();
+
+    return successResponse(res, 200, "Message deleted", {
+      deletedMessage: message,
+    });
+  } catch (error) {
+    console.log("Delete Message Error:", error);
+    return errorResponse(res, 500, "Failed to delete message");
+  }
+};
+
+
+export const updateMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { message } = req.body;
+    const userId = req.user.userId;
+
+    if (!message || typeof message !== "string") {
+      return errorResponse(res, 400, "Updated message text is required");
+    }
+
+    const existingMessage = await Message.findById(messageId);
+
+    if (!existingMessage) {
+      return errorResponse(res, 404, "Message not found");
+    }
+
+    if (existingMessage.senderId.toString() !== userId) {
+      return errorResponse(
+        res,
+        403,
+        "You are not the owner of this message"
+      );
+    }
+
+    existingMessage.message = message;
+    existingMessage.isEdited = true;
+
+    await existingMessage.save();
+
+    return successResponse(res, 200, "Message updated", {
+      updatedMessage: existingMessage,
+    });
+  } catch (error) {
+    console.log("Update Message Error:", error);
+    return errorResponse(res, 500, "Failed to update message");
+  }
+};

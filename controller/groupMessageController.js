@@ -6,6 +6,7 @@ import { successResponse, errorResponse } from "../common/statuscode.js";
 export const getGroupMessages = async (req, res) => {
   try {
     const { groupId } = req.params;
+    console.log(`Fetching messages for group: ${groupId}`);
 
     if (!groupId) {
       return errorResponse(res, 400, "Group ID is required");
@@ -14,6 +15,8 @@ export const getGroupMessages = async (req, res) => {
     const messages = await GroupMessage.find({ groupId })
       .populate("senderId", "firstName lastName")
       .sort({ createdAt: 1 });
+
+      console.log(`Fetched ${messages} messages for group ${groupId}`);
 
     return successResponse(res, 200, {
       messages,
@@ -25,19 +28,67 @@ export const getGroupMessages = async (req, res) => {
   }
 };
 
-//  import GroupMessage from "../models/groupMessage.model.js";
-// import { successResponse, errorResponse } from "../common/statuscode.js";
 
-// export const getGroupMessages = async (req, res) => {
-//   try {
-//     const { groupId } = req.params;
+export const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user.userId;
 
-//     const messages = await GroupMessage.find({ groupId })
-//       .populate("senderId", "firstName lastName")
-//       .sort({ createdAt: 1 });
+    const message = await GroupMessage.findById(messageId);
 
-//     return successResponse(res, 200, { messages });
-//   } catch (error) {
-//     return errorResponse(res, 500, "Failed to fetch group messages");
-//   }
-// };
+    if (!message) {
+      return errorResponse(res, 404, "Message not found");
+    }
+
+    if (message.senderId.toString() !== userId) {
+      return errorResponse(
+        res,
+        403,
+        "You are not the owner of this message"
+      );
+    }
+
+    message.message = "This message was deleted";
+    message.isDeleted = true;
+
+    await message.save();
+
+    return successResponse(res, 200, "Message deleted", {
+      deletedMessage: message,
+    });
+  } catch (error) {
+    console.log("Delete Message Error:", error);
+    return errorResponse(res, 500, "Failed to delete message");
+  }
+};
+
+
+export const updateMessage = async (req,res)=>{
+  try {
+     const {messageId} = req.params;
+     const {message:newMessage} = req.body;
+     const userId = req.user.userId;
+      if (!newMessage || typeof newMessage !== "string") {
+      return errorResponse(res, 400, "Updated message text is required");
+    }
+
+     const existingMessage = await GroupMessage.findById(messageId);
+     
+     if(!existingMessage){
+      return errorResponse(res,404,"Message not found");
+     }
+
+      if(existingMessage.senderId.toString() !== userId){
+        return errorResponse(res,403,"You are not the owner of this message");
+      }
+
+      existingMessage.message = newMessage;
+      existingMessage.isEdited = true;
+      await existingMessage.save();
+
+      return successResponse(res, 200, { updatedMessage:existingMessage,});
+  }catch (error) {
+    console.log("Update Message Error:", error);
+    return errorResponse(res, 500, "Failed to update message");
+  }
+}

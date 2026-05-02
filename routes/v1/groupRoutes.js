@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { createGroup, getUserGroups } from "../controller/groupcontroller.js";
+import { createGroup, getUserGroups } from "../../controller/groupcontroller.js";
 
-import { checkAuth } from "../middleware/auth.js";
+import { checkAuth } from "../../middleware/auth.js";
 
 const router = Router();
 router.post("/group", checkAuth, createGroup);
