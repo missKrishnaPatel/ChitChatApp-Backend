@@ -2,6 +2,7 @@
 
 import GroupMessage from "../models/groupMessage.model.js";
 import { successResponse, errorResponse } from "../common/statuscode.js";
+import { io } from "../socket/socket.js";
 
 export const getGroupMessages = async (req, res) => {
   try {
@@ -53,6 +54,9 @@ export const deleteMessage = async (req, res) => {
 
     await message.save();
 
+    // Emit socket event to notify all users in the group
+    io.to(message.groupId.toString()).emit("groupMessageDeleted", message);
+
     return successResponse(res, 200, "Message deleted", {
       deletedMessage: message,
     });
@@ -85,6 +89,9 @@ export const updateMessage = async (req,res)=>{
       existingMessage.message = newMessage;
       existingMessage.isEdited = true;
       await existingMessage.save();
+
+      // Emit socket event to notify all users in the group
+      io.to(existingMessage.groupId.toString()).emit("groupMessageUpdated", existingMessage);
 
       return successResponse(res, 200, { updatedMessage:existingMessage,});
   }catch (error) {

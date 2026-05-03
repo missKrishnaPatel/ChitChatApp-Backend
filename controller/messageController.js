@@ -97,6 +97,12 @@ export const deleteMessage = async (req, res) => {
 
     await message.save();
 
+    // Emit socket event to notify the receiver
+    const receiverSocketId = userSocketMap[message.receiverId.toString()];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageDeleted", message);
+    }
+
     return successResponse(res, 200, "Message deleted", {
       deletedMessage: message,
     });
@@ -135,6 +141,12 @@ export const updateMessage = async (req, res) => {
     existingMessage.isEdited = true;
 
     await existingMessage.save();
+
+    // Emit socket event to notify the receiver
+    const receiverSocketId = userSocketMap[existingMessage.receiverId.toString()];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageUpdated", existingMessage);
+    }
 
     return successResponse(res, 200, "Message updated", {
       updatedMessage: existingMessage,
