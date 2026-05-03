@@ -100,6 +100,7 @@ export const getAllUsers = async (req, res) => {
     }
 
     const getAllUser = await User.find({ _id: { $ne: userId } });
+    console.log(getAllUser);
     return successResponse(res, 200, "Successfully fetched all users", {
       getAllUser,
     });

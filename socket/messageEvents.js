@@ -3,9 +3,8 @@ import Message from "../models/message.model.js";
 export const registerMessageEvents = (io, socket, userSocketMap) => {
   const userId = socket.user.userId;
 
-  // ===============================
+  
   // UPDATE PRIVATE MESSAGE
-  // ===============================
   socket.on("updateMessage", async ({ messageId, newMessage }) => {
     try {
       const message = await Message.findById(messageId);
@@ -29,12 +28,12 @@ export const registerMessageEvents = (io, socket, userSocketMap) => {
 
       socket.emit("messageUpdated", message);
 
-      const receiverSocketId =
-        userSocketMap[message.receiverId?.toString()];
+      const receiverSocketIds =
+        userSocketMap[message.receiverId?.toString()] || [];
 
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("messageUpdated", message);
-      }
+      receiverSocketIds.forEach((socketId) => {
+        io.to(socketId).emit("messageUpdated", message);
+      });
 
       console.log("Private message updated");
     } catch (error) {
@@ -42,9 +41,9 @@ export const registerMessageEvents = (io, socket, userSocketMap) => {
     }
   });
 
-  // ===============================
+  
+
   // DELETE PRIVATE MESSAGE
-  // ===============================
   socket.on("deleteMessage", async ({ messageId }) => {
     try {
       const message = await Message.findById(messageId);
@@ -68,12 +67,12 @@ export const registerMessageEvents = (io, socket, userSocketMap) => {
 
       socket.emit("messageDeleted", message);
 
-      const receiverSocketId =
-        userSocketMap[message.receiverId?.toString()];
+      const receiverSocketIds =
+        userSocketMap[message.receiverId?.toString()] || [];
 
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit("messageDeleted", message);
-      }
+      receiverSocketIds.forEach((socketId) => {
+        io.to(socketId).emit("messageDeleted", message);
+      });
 
       console.log("Private message deleted");
     } catch (error) {

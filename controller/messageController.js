@@ -36,11 +36,11 @@ export const createNewMessage = async(req,res)=>{
         }
 
         await Promise.all([conversation.save(), newMessage.save()])
-        const receiverSocketId = userSocketMap[receiverId];
+        const receiverSocketIds = userSocketMap[receiverId] || [];
 
-        if(receiverSocketId){
-            io.to(receiverSocketId).emit("newMessage",newMessage);
-        }
+        receiverSocketIds.forEach((socketId) => {
+            io.to(socketId).emit("newMessage", newMessage);
+        });
         return successResponse(res,200,"Message send successfully",{newMessage})
 
     }catch(error){
@@ -98,10 +98,10 @@ export const deleteMessage = async (req, res) => {
     await message.save();
 
     // Emit socket event to notify the receiver
-    const receiverSocketId = userSocketMap[message.receiverId.toString()];
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("messageDeleted", message);
-    }
+    const receiverSocketIds = userSocketMap[message.receiverId.toString()] || [];
+    receiverSocketIds.forEach((socketId) => {
+      io.to(socketId).emit("messageDeleted", message);
+    });
 
     return successResponse(res, 200, "Message deleted", {
       deletedMessage: message,
@@ -143,10 +143,10 @@ export const updateMessage = async (req, res) => {
     await existingMessage.save();
 
     // Emit socket event to notify the receiver
-    const receiverSocketId = userSocketMap[existingMessage.receiverId.toString()];
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit("messageUpdated", existingMessage);
-    }
+    const receiverSocketIds = userSocketMap[existingMessage.receiverId.toString()] || [];
+    receiverSocketIds.forEach((socketId) => {
+      io.to(socketId).emit("messageUpdated", existingMessage);
+    });
 
     return successResponse(res, 200, "Message updated", {
       updatedMessage: existingMessage,

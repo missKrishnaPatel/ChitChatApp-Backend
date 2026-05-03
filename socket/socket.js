@@ -2,6 +2,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
+import User from "../models/user.model.js";
 
 import { registerMessageEvents } from "./messageEvents.js";
 import { registerGroupEvents } from "./groupEvents.js";
@@ -21,9 +22,9 @@ const io = new Server(server, {
 
 export { io };
 
-// ===============================
+
+
 // SOCKET AUTH MIDDLEWARE
-// ===============================
 io.use((socket, next) => {
   try {
     const token = socket.handshake.auth.token;
@@ -49,9 +50,19 @@ io.on("connection", async (socket) => {
   try {
     const userId = socket.user.userId;
 
-    userSocketMap[userId] = socket.id;
+    if (!userSocketMap[userId]) {
+      userSocketMap[userId] = [];
+    }
+    userSocketMap[userId].push(socket.id);
+
+    await User.findByIdAndUpdate(userId, { isOnline: true });
 
     console.log("Socket User Connected:", userId);
+    io.emit("userStatusChanged", {
+      userId,
+      isOnline: true,
+      lastSeen: null,
+    });
 
     // Register private chat events
     registerMessageEvents(io, socket, userSocketMap);
@@ -59,9 +70,29 @@ io.on("connection", async (socket) => {
     // Register group chat events
     registerGroupEvents(io, socket);
 
-    socket.on("disconnect", () => {
-      delete userSocketMap[userId];
-      console.log("Socket User Disconnected:", socket.id);
+    socket.on("disconnect", async () => {
+      const userSockets = userSocketMap[userId] || [];
+      const socketIndex = userSockets.indexOf(socket.id);
+      if (socketIndex !== -1) {
+        userSockets.splice(socketIndex, 1);
+      }
+
+      if (userSockets.length === 0) {
+        delete userSocketMap[userId];
+
+        const updatedUser = await User.findByIdAndUpdate(
+          userId,
+          { isOnline: false, lastSeen: new Date() },
+          { new: true },
+        );
+
+        console.log("Socket User Disconnected:", socket.id);
+        io.emit("userStatusChanged", {
+          userId,
+          isOnline: false,
+          lastSeen: updatedUser?.lastSeen || new Date(),
+        });
+      }
     });
   } catch (error) {
     console.log("Socket Connection Error:", error);
