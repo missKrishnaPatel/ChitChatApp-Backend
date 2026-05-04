@@ -110,4 +110,10 @@ export const registerGroupEvents = (io, socket) => {
       console.log("Delete Group Message Error:", error);
     }
   });
+
+
+  socket.on("joinNewGroup",(groupId)=>{
+    socket.join(groupId);
+    console.log(`User ${userId} joined new group ${groupId}`);
+  })
 };

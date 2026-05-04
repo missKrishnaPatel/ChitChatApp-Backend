@@ -43,9 +43,8 @@ io.use((socket, next) => {
   }
 });
 
-// ===============================
+
 // SOCKET CONNECTION
-// ===============================
 io.on("connection", async (socket) => {
   try {
     const userId = socket.user.userId;
