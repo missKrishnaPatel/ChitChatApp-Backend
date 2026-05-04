@@ -68,6 +68,7 @@ export const registerMessageEvents = (io, socket, userSocketMap) => {
       socket.emit("messageDeleted", message);
 
       const receiverSocketIds =
+      
         userSocketMap[message.receiverId?.toString()] || [];
 
       receiverSocketIds.forEach((socketId) => {

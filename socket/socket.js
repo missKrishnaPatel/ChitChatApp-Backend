@@ -71,6 +71,7 @@ io.on("connection", async (socket) => {
     registerGroupEvents(io, socket);
 
     socket.on("disconnect", async () => {
+      console.log("Socket User Disconnected:", userId);
       const userSockets = userSocketMap[userId] || [];
       const socketIndex = userSockets.indexOf(socket.id);
       if (socketIndex !== -1) {

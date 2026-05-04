@@ -30,6 +30,50 @@ export const getGroupMessages = async (req, res) => {
 };
 
 
+
+export const sendGroupFile = async (req, res) => {
+  try {
+    const { groupId } = req.body;
+    console.log(`Received request to send file to group ${groupId}`);
+    const senderId = req.user.userId;
+      console.log("req.file ", req.file);   
+    const fileUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    const fileType = req.file ? req.file.mimetype : null;
+    const fileName = req.file ? req.file.originalname : null;
+    const { message } = req.body;
+
+    if (!groupId || (!message && !fileUrl)) {
+      return errorResponse(res, 400, "Message or file is required");
+    }
+
+    const newMessage = await GroupMessage.create({
+      groupId,
+      senderId,
+      message: message || "",
+      fileUrl,
+      fileType,
+      fileName,
+    });
+
+    const populatedMessage = await GroupMessage.findById(newMessage._id)
+      .populate("senderId", "firstName lastName");
+
+    const messageToEmit = {
+      ...populatedMessage.toObject(),
+      senderName: `${populatedMessage.senderId.firstName} ${populatedMessage.senderId.lastName}`,
+    };
+
+    // EMIT TO ALL GROUP MEMBERS
+    io.to(groupId).emit("receiveGroupMessage", messageToEmit);
+
+    return successResponse(res, 200, "File sent successfully", { newMessage: messageToEmit });
+  } catch (error) {
+    console.error("Send Group File Error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+};
+
+
 export const deleteMessage = async (req, res) => {
   try {
     const { messageId } = req.params;

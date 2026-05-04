@@ -4,6 +4,10 @@ import cors from "cors";
 import { dbConnect } from "./config/dbConnection.js";
 import { app, server } from "./socket/socket.js";
 import router from "./routes/index.js";
+import path from "path";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 dotenv.config();
 
 app.use(express.json());
@@ -16,13 +20,14 @@ app.use(
 );
 
 app.use("/api", router);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    message: "Server running",
-  });
-});
+// app.get("/", (req, res) => {
+//   res.json({
+//     success: true,
+//     message: "Server running",
+//   });
+// });
 
 const PORT = process.env.PORT || 3000;
 

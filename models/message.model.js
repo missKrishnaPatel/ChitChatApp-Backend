@@ -12,7 +12,7 @@ const messageSchema = new mongoose.Schema({
     },
     message:{
         type:String,
-        required:true,
+        default: "",
     },
     isDeleted:{
         type:Boolean,
@@ -21,7 +21,17 @@ const messageSchema = new mongoose.Schema({
     isEdited:{
         type:Boolean,
         default:false,
-    }
+    },
+    fileUrl:{
+        type:String,
+        default:null,
+    },
+    fileType:{
+        type:String,
+        default:null,
+    },
+    fileName: { type: String, default: null }, 
+    
 },{timestamps:true});
 
 const Message = mongoose.model("Message", messageSchema);

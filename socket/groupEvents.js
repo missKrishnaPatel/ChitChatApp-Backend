@@ -4,33 +4,25 @@ import Group from "../models/group.model.js";
 export const registerGroupEvents = (io, socket) => {
   const userId = socket.user.userId;
 
-  // ===============================
   // AUTO JOIN USER GROUPS
-  // ===============================
   Group.find({ members: userId })
     .then((groups) => {
       groups.forEach((group) => {
         socket.join(group._id.toString());
-        console.log(
-          `User ${userId} joined group ${group.groupName}`
-        );
+        console.log(`User ${userId} joined group ${group.groupName}`);
       });
     })
     .catch((error) => {
       console.log("Auto Join Group Error:", error);
     });
 
-  // ===============================
   // MANUAL JOIN GROUP
-  // ===============================
   socket.on("joinGroup", (groupId) => {
     socket.join(groupId);
     console.log(`User ${userId} manually joined group ${groupId}`);
   });
 
-  // ===============================
   // SEND GROUP MESSAGE
-  // ===============================
   socket.on("sendGroupMessage", async ({ groupId, message }) => {
     try {
       if (!groupId || !message) return;
@@ -39,10 +31,13 @@ export const registerGroupEvents = (io, socket) => {
         groupId,
         senderId: userId,
         message,
+        fileUrl: null,
+        fileType: null,
+        fileName: null,
       });
 
       const populatedMessage = await GroupMessage.findById(
-        newMessage._id
+        newMessage._id,
       ).populate("senderId", "firstName lastName");
 
       io.to(groupId).emit("receiveGroupMessage", {
@@ -56,9 +51,7 @@ export const registerGroupEvents = (io, socket) => {
     }
   });
 
-  // ===============================
   // UPDATE GROUP MESSAGE
-  // ===============================
   socket.on("updateGroupMessage", async ({ messageId, newMessage }) => {
     try {
       const message = await GroupMessage.findById(messageId);
@@ -80,10 +73,7 @@ export const registerGroupEvents = (io, socket) => {
 
       await message.save();
 
-      io.to(message.groupId.toString()).emit(
-        "groupMessageUpdated",
-        message
-      );
+      io.to(message.groupId.toString()).emit("groupMessageUpdated", message);
 
       console.log("Group message updated");
     } catch (error) {
@@ -91,9 +81,7 @@ export const registerGroupEvents = (io, socket) => {
     }
   });
 
-  // ===============================
   // DELETE GROUP MESSAGE
-  // ===============================
   socket.on("deleteGroupMessage", async ({ messageId }) => {
     try {
       const message = await GroupMessage.findById(messageId);
@@ -115,10 +103,7 @@ export const registerGroupEvents = (io, socket) => {
 
       await message.save();
 
-      io.to(message.groupId.toString()).emit(
-        "groupMessageDeleted",
-        message
-      );
+      io.to(message.groupId.toString()).emit("groupMessageDeleted", message);
 
       console.log("Group message deleted");
     } catch (error) {
