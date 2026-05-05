@@ -2,21 +2,27 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
+import User from "../models/user.model.js";
 
-import GroupMessage from "../models/groupMessage.model.js";
-import Group from "../models/group.model.js";
-// import groupModel from "../models/group.model.js";
+import { registerMessageEvents } from "./messageEvents.js";
+import { registerGroupEvents } from "./groupEvents.js";
 
 const app = express();
 const server = http.createServer(app);
 
+export const userSocketMap = {};
+
 const io = new Server(server, {
   cors: {
     origin: "http://localhost:5173",
-    methods: ["GET", "POST"],
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
 });
+
+export { io };
+
+
 
 // SOCKET AUTH MIDDLEWARE
 io.use((socket, next) => {
@@ -37,78 +43,60 @@ io.use((socket, next) => {
   }
 });
 
-// STORE CONNECTED USERS
-export const userSocketMap = {};
 
 // SOCKET CONNECTION
 io.on("connection", async (socket) => {
   try {
     const userId = socket.user.userId;
 
-    userSocketMap[userId] = socket.id;
+    if (!userSocketMap[userId]) {
+      userSocketMap[userId] = [];
+    }
+    userSocketMap[userId].push(socket.id);
+
+    await User.findByIdAndUpdate(userId, { isOnline: true });
 
     console.log("Socket User Connected:", userId);
-
-    // ===============================
-    // AUTO JOIN ALL GROUPS OF USER
-    // ===============================
-    const userGroups = await Group.find({
-      members: userId,
+    io.emit("userStatusChanged", {
+      userId,
+      isOnline: true,
+      lastSeen: null,
     });
 
-    userGroups.forEach((group) => {
-      socket.join(group._id.toString());
-      console.log(`User ${userId} joined group ${group.groupName}`);
-    });
+    // Register private chat events
+    registerMessageEvents(io, socket, userSocketMap);
 
-    // ===============================
-    // MANUAL JOIN GROUP
-    // ===============================
-    socket.on("joinGroup", (groupId) => {
-      socket.join(groupId);
-      console.log(`User ${userId} manually joined group ${groupId}`);
-    });
+    // Register group chat events
+    registerGroupEvents(io, socket);
 
-    // ===============================
-    // SEND GROUP MESSAGE
-    // ===============================
-    socket.on("sendGroupMessage", async ({ groupId, message }) => {
-      try {
-        if (!groupId || !message) return;
-
-        // SAVE MESSAGE
-        const newMessage = await GroupMessage.create({
-          groupId,
-          senderId: userId,
-          message,
-        });
-
-        // POPULATE SENDER DETAILS
-        const populatedMessage = await GroupMessage.findById(newMessage._id)
-          .populate("senderId", "firstName lastName");
-
-        // EMIT TO ALL GROUP MEMBERS
-        io.to(groupId).emit("receiveGroupMessage", {
-          ...populatedMessage.toObject(),
-          senderName: `${populatedMessage.senderId.firstName} ${populatedMessage.senderId.lastName}`,
-        });
-
-        console.log(`Group message sent to group ${groupId}`);
-      } catch (error) {
-        console.log("Group Message Error:", error);
+    socket.on("disconnect", async () => {
+      console.log("Socket User Disconnected:", userId);
+      const userSockets = userSocketMap[userId] || [];
+      const socketIndex = userSockets.indexOf(socket.id);
+      if (socketIndex !== -1) {
+        userSockets.splice(socketIndex, 1);
       }
-    });
 
-    // ===============================
-    // DISCONNECT
-    // ===============================
-    socket.on("disconnect", () => {
-      delete userSocketMap[userId];
-      console.log("Socket User Disconnected:", socket.id);
+      if (userSockets.length === 0) {
+        delete userSocketMap[userId];
+
+        const updatedUser = await User.findByIdAndUpdate(
+          userId,
+          { isOnline: false, lastSeen: new Date() },
+          { new: true },
+        );
+
+        console.log("Socket User Disconnected:", socket.id);
+        io.emit("userStatusChanged", {
+          userId,
+          isOnline: false,
+          lastSeen: updatedUser?.lastSeen || new Date(),
+        });
+      }
     });
   } catch (error) {
     console.log("Socket Connection Error:", error);
   }
 });
 
-export { app, server, io };
+export { app, server };
