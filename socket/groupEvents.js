@@ -112,8 +112,42 @@ export const registerGroupEvents = (io, socket) => {
   });
 
 
-  socket.on("joinNewGroup",(groupId)=>{
-    socket.join(groupId);
-    console.log(`User ${userId} joined new group ${groupId}`);
-  })
+  // socket.on("joinNewGroup",(groupId)=>{
+  //   socket.join(groupId);
+  //   console.log(`User ${userId} joined new group ${groupId}`);
+  // });
+
+
+// user joins new group
+socket.on("joinNewGroup", (groupId) => {
+  socket.join(groupId);
+});
+
+// user removed from group
+socket.on("memberRemoved", ({ groupId }) => {
+  socket.leave(groupId);
+});
+  
+    socket.on("groupUpdated", (updatedGroup) => {
+  console.log("Group updated from socket:", updatedGroup);
+
+  // Update groups list
+  setGroups((prev) =>
+    prev.map((g) =>
+      g._id === updatedGroup._id ? updatedGroup : g
+    )
+  );
+
+  // Update currently selected group
+  if (selectedGroupRef.current?._id === updatedGroup._id) {
+    setSelectedGroup(updatedGroup);
+  }
+}); 
+
+socket.on("memberRemoved", ({ groupId }) => {
+  if (selectedGroupRef.current?._id === groupId) {
+    setSelectedGroup(null); // or navigate away
+  }
+});
+
 };

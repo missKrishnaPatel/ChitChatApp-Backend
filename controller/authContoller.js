@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 import { errorResponse, successResponse } from "../common/statuscode.js";
+import { io } from "../socket/socket.js";
 
 export const signUp = async (req, res) => {
   const { firstName, lastName, email, password, confirmPassword } = req.body;
@@ -107,5 +108,50 @@ export const getAllUsers = async (req, res) => {
   } catch (error) {
     console.log(error);
     return errorResponse(res, 500, "Internal server errror");
+  }
+};
+
+export const getMe = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const user = await User.findById(userId).select("-password");
+    if (!user) return errorResponse(res, 404, "User not found");
+    return successResponse(res, 200, "User fetched", { user });
+  } catch (error) {
+    console.log(error);
+    return errorResponse(res, 500, "Internal server errror");
+  }
+};
+
+
+
+export const uploadProfilePicture = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+
+    if (!req.file) {
+      return errorResponse(res, 400, "No file uploaded");
+    }
+
+    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePicture: imageUrl },
+      { new: true }
+    );
+
+    io.emit("userProfileUpdated", {
+      userId: String(updatedUser._id),
+      profilePicture: updatedUser.profilePicture,
+      user: updatedUser,
+    });
+
+    return successResponse(res, 200, "Profile picture updated", {
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.log(error);
+    return errorResponse(res, 500, "Internal server error");
   }
 };

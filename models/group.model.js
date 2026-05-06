@@ -14,10 +14,10 @@ const groupSchema = new mongoose.Schema({
         ref:"User",
     }]
     ,
-    admin:{
+    admins:[{
         type:mongoose.Schema.Types.ObjectId,
         ref:"User",
-    }
+    }]
 },{timestamps: true});
 
 export default mongoose.model("Group", groupSchema);
