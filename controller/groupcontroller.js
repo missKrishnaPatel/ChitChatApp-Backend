@@ -12,9 +12,12 @@ export const createGroup = async (req, res) => {
       members: [...members, creatorId],
       admins: [creatorId],
     });
-    console.log("ADMINS FIELD:", group.members);
 
-    return successResponse(res, 201, { group });
+    const populatedGroup = await Group.findById(group._id)
+      .populate("members", "firstName lastName profilePicture")
+      .populate("admins", "firstName lastName profilePicture");
+
+    return successResponse(res, 201, "Group created", { group: populatedGroup });
   } catch (error) {
     return errorResponse(res, 500, "Group creation failed");
   }
@@ -26,9 +29,11 @@ export const getUserGroups = async (req, res) => {
 
     const groups = await Group.find({
       members: userId,
-    }).populate("members", "-password");
+    })
+      .populate("members", "firstName lastName profilePicture")
+      .populate("admins", "firstName lastName profilePicture");
 
-    return successResponse(res, 200, { groups });
+    return successResponse(res, 200, "Groups fetched", { groups });
   } catch (error) {
     return errorResponse(res, 500, "Failed to fetch groups");
   }
@@ -233,7 +238,7 @@ export const getGroupById = async (req, res) => {
 
     const group = await Group.findById(groupId)
       .populate("members", "firstName lastName profilePicture")
-      .populate("admins", "firstName lastName");
+      .populate("admins", "firstName lastName profilePicture");
 
     if (!group) {
       return errorResponse(res, 404, "Group not found");
@@ -245,11 +250,43 @@ export const getGroupById = async (req, res) => {
       return errorResponse(res, 403, "Access denied");
     }
 
-    return successResponse(res, 200, {
-      group,
-    });
+    return successResponse(res, 200, "Group fetched", { group });
   } catch (error) {
     console.error("Get Group By ID Error:", error);
+    return errorResponse(res, 500, "Internal server error");
+  }
+};
+
+
+
+export const updateGroupImage = async (req, res) => {
+  try {
+    const { groupId } = req.body;
+    const userId = req.user.userId;
+
+    if (!req.file) return errorResponse(res, 400, "No file uploaded");
+    if (!groupId) return errorResponse(res, 400, "groupId is required");
+
+    const group = await Group.findById(groupId);
+    if (!group) return errorResponse(res, 404, "Group not found");
+
+    if (!group.members.map(String).includes(String(userId))) {
+      return errorResponse(res, 403, "Not a group member");
+    }
+
+    const imageUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    group.groupImage = imageUrl;
+    await group.save();
+
+    const updatedGroup = await Group.findById(groupId)
+      .populate("members", "firstName lastName profilePicture")
+      .populate("admins", "firstName lastName profilePicture");
+
+    io.to(String(groupId)).emit("groupUpdated", updatedGroup);
+
+    return successResponse(res, 200, "Group image updated", { group: updatedGroup });
+  } catch (error) {
+    console.error("Update Group Image Error:", error); // this will show exact error
     return errorResponse(res, 500, "Internal server error");
   }
 };
