@@ -22,10 +22,10 @@ const userSchema = new mongoose.Schema({
         type:String,
         default: "",
     },
-    isOnline:{
-        type:Boolean,
-        default:false,
-    },
+    // isOnline:{
+    //     type:Boolean,
+    //     default:false,
+    // },
     lastSeen:{
         type:Date,
         default:Date.now,

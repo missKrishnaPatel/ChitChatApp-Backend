@@ -1,6 +1,6 @@
 import { errorResponse, successResponse } from "../common/statuscode.js";
 import Group from "../models/group.model.js";
-import { io, userSocketMap } from "../socket/socket.js";
+import { io} from "../socket/socket.js";
 
 export const createGroup = async (req, res) => {
   try {
@@ -42,7 +42,7 @@ export const getUserGroups = async (req, res) => {
 
 export const addMember = async (req, res) => {
   try {
-    const { groupId, userId } = req.body;
+    const { groupId, userId:memberId } = req.body;
     const requesterId = req.user.userId;
 
     const group = await Group.findById(groupId);
@@ -54,11 +54,11 @@ export const addMember = async (req, res) => {
     }
 
    
-    if (group.members.map(String).includes(userId)) {
+    if (group.members.map(String).includes(memberId)) {
       return errorResponse(res, 400, "User already in group");
     }
 
-    group.members.push(userId);
+    group.members.push(memberId);
     await group.save();
 
     const updatedGroup = await Group.findById(groupId)
@@ -67,10 +67,15 @@ export const addMember = async (req, res) => {
     console.log("Updated Group:", updatedGroup);
 
     
-    const userSocketId = userSocketMap[userId];
-    if (userSocketId) {
-      io.to(userSocketId).emit("joinNewGroup", groupId);
-    }
+    // const userSocketId = userSocketMap[userId];
+    // if (userSocketId) {
+    //   io.to(userSocketId).emit("joinNewGroup", groupId);
+    // }
+
+    io.to(memberId.toString()).emit(
+  "joinNewGroup",
+  groupId
+);
 
    
     io.to(groupId).emit("groupUpdated", updatedGroup);
@@ -87,7 +92,8 @@ export const addMember = async (req, res) => {
 
 export const removeMember = async (req, res) => {
   try {
-    const { groupId, userId } = req.body;
+    const { groupId, userId :memberId }
+    = req.body;
     const requesterId = req.user.userId;
 
     console.log("body from request:", req.body);
@@ -131,10 +137,7 @@ export const removeMember = async (req, res) => {
     io.to(groupId).emit("groupUpdated", updatedGroup);
 
    
-    const userSocketId = userSocketMap[userId];
-    if (userSocketId) {
-      io.to(userSocketId).emit("memberRemoved", { groupId });
-    }
+    io.to(memberId.String()).emit("memberRemoved", { groupId });
     console.log("Updated Group after removal:", updatedGroup);
     return successResponse(res, 200, "Member removed", {
       group: updatedGroup,

@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
 import { errorResponse, successResponse } from "../common/statuscode.js";
 import { io } from "../socket/socket.js";
-
+import redisClient from "../redis/redisClient.js";
 export const signUp = async (req, res) => {
   const { firstName, lastName, email, password, confirmPassword } = req.body;
   try {
@@ -101,10 +101,24 @@ export const getAllUsers = async (req, res) => {
     }
 
     const getAllUser = await User.find({ _id: { $ne: userId } });
-    console.log(getAllUser);
+    // console.log(getAllUser);
+
+
+    const onlineUserIds = await redisClient.sMembers("online_users");
+    const onlineSet = new Set(onlineUserIds.map(String));
+
+
+    console.log("Online User IDs:", onlineUserIds , "Online Set:", onlineSet);
+
+    const enriched = getAllUser.map((user)=>({
+      ...user.toObject(),
+      isOnline: onlineSet.has(String(user._id)),
+    }));
     return successResponse(res, 200, "Successfully fetched all users", {
-      getAllUser,
+      getAllUser: enriched,
     });
+
+    console.log(getAllUser);
   } catch (error) {
     console.log(error);
     return errorResponse(res, 500, "Internal server errror");
