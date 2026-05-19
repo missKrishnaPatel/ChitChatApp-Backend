@@ -12,7 +12,13 @@ dotenv.config();
 
 app.use(express.json());
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://chitchatapp-client-1.onrender.com'
+  ],
+  credentials: true
+}));
 
 app.use("/api", router);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
